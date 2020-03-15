@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>
+            贪吃蛇
+        </title>
+        <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+        </script>
+        <style>
+            .snake { margin: 0 auto; } 
+            table { border: 1px solid green; } 
+            td { width:10px; height: 10px; } 
+            .snake-head { background: red; } 
+            .snake-body { background:pink; } 
+            .snake-fruit { background: green; } 
+            .snake-obstacle { background:gray; }
+        </style>
+    </head>
+    
+    <body>
+        <div id="app">
+            <div class="snake">
+                <table>
+                    <tr v-for="i in map.width" :key="i">
+                        <td v-for="j in map.height" :key="j" :class="calClassName(j - 1, i - 1)">
+                        </td>
+                    </tr>
+                </table>
+                {{score}}
+                <button @click="shift">
+                    {{interval?"暂停":"开始"}}
+                </button>
+                <button @click="reset">
+                    重置
+                </button>
+            </div>
+        </div>
+        <script>
+            /**
+             * 地图点位置类型
+             */
+            const PositionType = {
+                BLANK: 0,
+                HEAD: 1,
+                BODY: 2,
+                FRUIT: 3,
+                OBSTACLE: 4,
+                OUT_OF_BOUNDS: 5
+            }
+
+            /**
+             * 前进方向
+             */
+            const ForwardDirection = {
+                RIGHT: 0,
+                DOWN: 1,
+                LEFT: 2,
+                UP: 3,
+            }
+
+            var app = new Vue({
+                el: '#app',
+                data () {
+                    return {
+                        map: {},
+                        snake: {},
+                        fruit: {},
+                        level: 3,
+                        score: 0,
+                        interval: null
+                    }
+                },
+                created () {
+                    this.keypressHandle();
+                    this.initMap();
+                    this.initObstacles();
+                    this.initSnake();
+                    this.initFruit();
+                },
+                methods: {
+                    initMap () {
+                        this.map = {
+                            width: 20,
+                            height: 20
+                        }
+                    },
+                    initObstacles () {
+                        this.obstacles = [
+                            {x: 10, y: 15},
+                            {x: 11, y: 15},
+                            {x: 12, y: 15},
+                            {x: 10, y: 16},
+                            {x: 11, y: 16},
+                            {x: 12, y: 16},
+                        ]
+                    },
+                    initSnake () {
+                        this.snake = {
+                            direction: 0,
+                            expectDirection: 0,
+                            head: {x: 10, y: 10},
+                            bodies: [
+                                {x: 9, y: 10},
+                                {x: 8, y: 10},
+                            ]
+                        }
+                    },
+                    initFruit () {
+                        let x, y;
+                        do {
+                            x = Math.floor(Math.random() * this.map.width);
+                            y = Math.floor(Math.random() * this.map.height);
+                        } while (this.getElementType(x, y));
+                        this.fruit = {x: x, y: y};
+                    },
+                    getElementType (x, y) {
+                        // 头
+                        if (this.snake.head.x === x && this.snake.head.y === y) {
+                            return PositionType.HEAD;
+                        }
+                        // 身体
+                        for (let body of this.snake.bodies) {
+                            if (body.x === x && body.y === y) {
+                                return PositionType.BODY;
+                            }
+                        }
+                        // 果实
+                        if (this.fruit.x === x && this.fruit.y === y) {
+                            return PositionType.FRUIT;
+                        }
+                        // 障碍物
+                        for (let obstacle of this.obstacles) {
+                            if (obstacle.x === x && obstacle.y === y) {
+                                return PositionType.OBSTACLE;
+                            }
+                        }
+                        // 出界
+                        if (x < 0 || x >= this.map.width || y < 0 || y >= this.map.height) {
+                            return PositionType.OUT_OF_BOUNDS;
+                        }
+                        return PositionType.BLANK;
+                    },
+                    calClassName (x, y) {
+                        let type = this.getElementType(x, y);
+                        switch (type) {
+                            case PositionType.BLANK:
+                                return 'snake-blank';
+                            case PositionType.HEAD:
+                                return 'snake-head';
+                            case PositionType.BODY:
+                                return 'snake-body';
+                            case PositionType.FRUIT:
+                                return 'snake-fruit';
+                            case PositionType.OBSTACLE:
+                                return 'snake-obstacle';
+                            case PositionType.OUT_OF_BOUNDS:
+                                return 'snake-out-of-bounds';
+                        }
+                    },
+                    shift () {
+                        if (this.interval) {
+                            clearInterval(this.interval);
+                            this.interval = null;
+                        } else {
+                            this.interval = setInterval(this.checkGoFoward, 500 - this.level * 100);
+                        }
+                    },
+                    reset () {
+                        if (this.interval) {
+                            this.shift();
+                        }
+                        this.initMap();
+                        this.initObstacles();
+                        this.initSnake();
+                        this.initFruit();
+                        this.score = 0;
+                        this.level = 1;
+                    },
+                    checkGoFoward () {
+                        let head = this.snake.head;
+                        let next;
+                        switch (this.snake.expectDirection) {
+                            case ForwardDirection.RIGHT:
+                                next = {
+                                    x: head.x + 1,
+                                    y: head.y
+                                };
+                                break;
+                            case ForwardDirection.DOWN:
+                                next = {
+                                    x: head.x,
+                                    y: head.y + 1
+                                };
+                                break;
+                            case ForwardDirection.LEFT:
+                                next = {
+                                    x: head.x - 1,
+                                    y: head.y
+                                };
+                                break;
+                            case ForwardDirection.UP:
+                                next = {
+                                    x: head.x,
+                                    y: head.y - 1
+                                };
+                                break;
+                        }
+                        let nextType = this.getElementType(next.x, next.y);
+                        if (nextType) {
+                            let tail = this.snake.bodies[this.snake.bodies.length - 1]
+                            if (nextType === PositionType.FRUIT) {
+                                // 吃果实
+                                this.snake.bodies.unshift(head);
+                                this.snake.head = next;
+                                this.initFruit();
+                                this.score = this.score + this.level;
+                            } else if (nextType === PositionType.BODY && next.x === tail.x && next.y === tail.y) {
+                                // 前进位置刚好是当前尾部
+                                this.goFoward(next);
+                            } else {
+                                // gg
+                                alert('gg');
+                                this.shift();
+                            }
+                        } else {
+                            this.goFoward(next);
+                        }
+                    },
+                    goFoward (next) {
+                        // 正常前进
+                        this.snake.bodies.pop();
+                        this.snake.bodies.unshift(this.snake.head);
+                        this.snake.head = next;
+                        this.snake.direction = this.snake.expectDirection;
+                    },
+                    keypressHandle () {
+                        let _this = this;
+                        document.onkeydown = (e) => {
+                            switch (e.key) {
+                            case 'ArrowRight':
+                                _this.changeDirection(ForwardDirection.RIGHT);
+                                break;
+                            case 'ArrowDown':
+                                _this.changeDirection(ForwardDirection.DOWN);
+                                break;
+                            case 'ArrowLeft':
+                                _this.changeDirection(ForwardDirection.LEFT);
+                                break;
+                            case 'ArrowUp':
+                                _this.changeDirection(ForwardDirection.UP);
+                                break;
+                            default:
+                                break;
+                            }
+                        };
+                    },
+                    changeDirection (direction) {
+                        let _this = this;
+                        let curDirection = _this.snake.direction;
+                        switch (direction) {
+                            case ForwardDirection.RIGHT:
+                                if (curDirection !== ForwardDirection.LEFT) {
+                                    _this.snake.expectDirection = ForwardDirection.RIGHT;
+                                }
+                                break;
+                            case ForwardDirection.DOWN:
+                                if (curDirection !== ForwardDirection.UP) {
+                                    _this.snake.expectDirection = ForwardDirection.DOWN;
+                                }
+                                break;
+                            case ForwardDirection.LEFT:
+                                if (curDirection !== ForwardDirection.RIGHT) {
+                                    _this.snake.expectDirection = ForwardDirection.LEFT;
+                                }
+                                break;
+                            case ForwardDirection.UP:
+                                if (curDirection !== ForwardDirection.DOWN) {
+                                    _this.snake.expectDirection = ForwardDirection.UP;
+                                }
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                }
+            })
+        </script>
+    </body>
+</html>

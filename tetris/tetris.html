@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>俄罗斯方块</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+    <style>
+         table { border: 1px solid green; } 
+         td { width: 10px; height: 10px; }
+
+         .block { background-color: black; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="tetris">
+            <table>
+                <tr v-for="i in map.height" :key="i">
+                    <td v-for="j in map.width" :key="j" :class="calClassName(j - 1, i - 1)">
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <script src="../common/common.js"></script>
+    <script src="./shape.js"></script>
+    <script>
+        var app = new Vue({
+                el: '#app',
+                data () {
+                    return {
+                        map: {
+                            width: 16,
+                            height: 20
+                        },
+                        tetris: {
+                            p: {
+                                x: 0,
+                                y: 0
+                            },
+                            shape: [],
+                            step: 0
+                        },
+                        // 堆积方块，key 为 y，value 为对应的坐标集合
+                        restBlockMap: new Map(),
+                        level: 2,
+                        interval: null
+                    }
+                },
+                created () {
+                    this.keypressHandle();
+                    this.randomBlock();
+                    this.interval = setInterval(this.mainLoop, 500 - this.level * 100);
+                },
+                methods: {
+                    calClassName (x, y) {
+                        // 当前方块
+                        if (this.tetris) {
+                            let bodyList = this.tetris.shape[this.tetris.step];
+                            let item = fetchFromArray(bodyList, {x: x - this.tetris.p.x, y: y - this.tetris.p.y});
+                            if (item) return 'block';
+                        }
+                        // 堆积方块
+                        let restBlockList = [];
+                        this.restBlockMap.forEach(item => restBlockList.push(...item));
+                        let item = fetchFromArray(restBlockList, {x: x, y: y});
+                        if (item) return 'block';
+                        return 'blank';
+                    },
+                    mainLoop () {
+                        let nextTetris = this.checkKnock('ArrowDown');
+                        if (nextTetris) {
+                            this.tetris = nextTetris;
+                            return;
+                        }
+                        let bodyList = this.tetris.shape[this.tetris.step];
+                        for (let item of bodyList) {
+                            let realX = this.tetris.p.x + item.x;
+                            let realY = this.tetris.p.y + item.y;
+                            if (!this.restBlockMap.has(realY)) {
+                                this.restBlockMap.set(realY, []);
+                            }
+                            this.restBlockMap.get(realY).push({x: realX, y: realY});
+                        }
+
+                        // 初始化当前方块
+                        this.tetris = null;
+
+                        // 检测消除
+                        let rowList = [];
+                        this.restBlockMap.forEach((value, index) => rowList.push(index));
+                        rowList.sort((a, b) => b - a);
+                        let offset = 0;
+                        for (let i = 0; i < rowList.length; i++) {
+                            let y = rowList[i]
+                            let currentRow = this.restBlockMap.get(y);
+                            if (currentRow.length === this.map.width) {
+                                this.restBlockMap.delete(y);
+                                offset++;
+                            } else {
+                                if (offset > 0) {
+                                    currentRow.forEach(item => item.y += offset);
+                                    this.restBlockMap.delete(y);
+                                    this.restBlockMap.set(y + offset, currentRow);
+                                }
+                            }
+                        }
+                        this.randomBlock();
+                    },
+                    // 随机生成下一个方块
+                    randomBlock () {
+                        let blockList = [a, b, c, d, e, f, g]
+                        let index = Math.floor(Math.random() * blockList.length);
+                        let step =  Math.floor(Math.random() * blockList[index].length);
+                        let nextTetris = {
+                            p: {
+                                x: this.map.width / 2 - 1,
+                                y: 0
+                            },
+                            shape: blockList[index],
+                            step: step
+                        };
+                        if (this.checkKnockTetris(nextTetris)) {
+                            clearInterval(this.interval);
+                            this.interval = null;
+                            alert('gg');
+                        } else {
+                            this.tetris = nextTetris;
+                        }
+                    },
+                    // 碰撞检测
+                    checkKnock (code) {
+                        let nextTetris = JSON.parse(JSON.stringify(this.tetris));
+                        if (code === 'ArrowUp') {
+                            // 变形
+                            nextTetris.step = (nextTetris.step + 1 === nextTetris.shape.length ? 0 : nextTetris.step + 1);
+                        } else {
+                            // 移动
+                            if (code === 'ArrowRight') {
+                                nextTetris.p.x += 1;
+                            } else if (code === 'ArrowDown') {
+                                nextTetris.p.y += 1;
+                            } else if (code === 'ArrowLeft') {
+                                nextTetris.p.x -= 1;
+                            }
+                        }
+                        return this.checkKnockTetris(nextTetris) ? null : nextTetris;
+                    },
+                    checkKnockTetris (tetris) {
+                        for (let item of tetris.shape[tetris.step]) {
+                            // 边界检测
+                            if((tetris.p.x + item.x < 0) || (tetris.p.x + item.x >= this.map.width)
+                                 || (tetris.p.y + item.y < 0) || (tetris.p.y + item.y >= this.map.height)) {
+                                return true;
+                            }
+                            // 堆积方块检测
+                            let restBlockList = [];
+                            this.restBlockMap.forEach(item => restBlockList.push(...item));
+                            let data = fetchFromArray(restBlockList, {x: tetris.p.x + item.x, y: tetris.p.y + item.y});
+                            if (data) return true;
+                        }
+                        return false;
+                    },
+                    keypressHandle () {
+                        const codeList = new Set(['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft']);
+                        document.onkeydown = (e) => {
+                            let code = e.code;
+                            if (!codeList.has(code) || !this.interval) {
+                                return;
+                            }
+                            let nextTetris = this.checkKnock(code);
+                            if (nextTetris) {
+                                this.tetris = nextTetris;
+                            }
+                        };
+                    }
+                }
+            });
+    </script>
+</body>
+</html>
