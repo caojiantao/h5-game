@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>推箱子</title>
+    <style>
+        body {
+            margin: 0;
+        }
+
+         table { border: 1px solid green; } 
+         td { width: 10px; height: 10px; }
+
+        .block { background-color: black; }
+
+        .hand-shank {
+            display: flex;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .hand-shank button{
+            width: 50px;
+            height: 50px;
+            margin: 10px;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    当前第<span id="level">1</span>关
+    <button onclick="restart()">重玩本关</button>
+    <button onclick="nextLevel()">下一关</button>
+
+    <div class="hand-shank">
+        <div class="hand-shank left">
+            <button onclick="go('ArrowUp')">上</button>
+            <div>
+                <button onclick="go('ArrowLeft')">左</button>
+                <button onclick="go('ArrowRight')">右</button>
+            </div>
+            <button onclick="go('ArrowDown')">下</button>
+        </div>
+        <div class="hand-shank right"></div>
+    </div>
+
+    <script src="../common/common.js"></script>
+    <script src="./map.js"></script>
+    <script>
+
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext("2d");
+
+        let imageMap = new Map();
+        let actorMap = new Map();
+        let level = 1;
+        let currentMap = [];
+        let unit = 0;
+        let actor = {};
+
+        initImage();
+
+        function init() {
+            initScale();
+            initData();
+            initMap();
+            initListener();
+        }
+
+        function initImage() {
+            let taskList = [];
+            let imageList = ["block", "wall", "ball", "box", "down", "box"];
+            imageList.forEach((name, index) => {
+                let url = `./images/${name}.png`;
+                let task = loadImage(url, img => imageMap.set(index, img));
+                taskList.push(task);
+            })
+            let actorList = ["up", "right", "down", "left"];
+            actorList.forEach((name, index) => {
+                let url = `./images/${name}.png`;
+                let task = loadImage(url, img => actorMap.set(index, img));
+                taskList.push(task);
+            })
+            Promise.all(taskList).then(() => init());
+        }
+
+        function initScale() {
+            let canvasWidth = document.body.clientWidth;
+            canvas.width = canvasWidth;
+            canvas.height = canvasWidth;
+            unit = canvasWidth / 16;
+        }
+
+        function initMap() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            let toDrawList = [];
+            currentMap.forEach((row, rowIndex) => row.forEach((item, itemIndex) => {
+                let block = imageMap.get(0);
+                let x = itemIndex * unit;
+                let y = rowIndex * unit;
+                ctx.drawImage(block, 0, 0, block.width, block.height, x, y, unit, unit);
+                if(item != 0) {
+                    let image;
+                    if(item === 4 || item === 6) {
+                        actor = {row: rowIndex, col: itemIndex, direction: actor.direction};
+                        image = actorMap.get(actor.direction);
+                    } else {
+                        image = imageMap.get(item);
+                    }
+                    let h = unit * image.height / image.width
+                    toDrawList.push({
+                        image: image,
+                        x: x,
+                        y: y + (unit - h) / 2,
+                        width: unit,
+                        height: h
+                    });
+                }
+            }));
+            toDrawList.forEach(item => ctx.drawImage(item.image, 0, 0, item.image.width, item.image.height, item.x, item.y, item.width, item.height));
+        }
+
+        function initListener() {
+            document.onkeydown = e => go(e.code);
+        }
+
+        function go(code) {
+            tryGo(code);
+            initMap();
+            tryFinish();
+        }
+
+        function tryGo(code) {
+            let next = {row: actor.row, col: actor.col};
+            let nextNext = {row: actor.row, col: actor.col};
+            switch (code) {
+                case 'ArrowUp':
+                    actor.direction = 0;
+                    next.row--;
+                    nextNext.row -= 2;
+                    break;
+                case 'ArrowRight':
+                    actor.direction = 1;
+                    next.col++;
+                    nextNext.col += 2;
+                    break;
+                case 'ArrowDown':
+                    actor.direction = 2;
+                    next.row++;
+                    nextNext.row += 2;
+                    break;
+                case 'ArrowLeft':
+                    actor.direction = 3;
+                    next.col--;
+                    nextNext.col -= 2;
+                    break;
+                default:
+                    break;
+            }
+            let item = currentMap[actor.row][actor.col];
+            let nextItem = currentMap[next.row][next.col];
+            let nextNextItem = currentMap[nextNext.row][nextNext.col];
+            if (nextItem === 0) {
+                currentMap[actor.row][actor.col] = (item === 4) ? 0 : 2;
+                currentMap[next.row][next.col] = 4;
+            } else if(nextItem === 2) {
+                currentMap[actor.row][actor.col] = (item === 4) ? 0 : 2;
+                currentMap[next.row][next.col] = 6;
+            } else if((nextItem === 3) || (nextItem ===5)) {
+                if (nextNextItem === 0) {
+                    currentMap[actor.row][actor.col] = (item === 4) ? 0 : 2;
+                    currentMap[next.row][next.col] = (nextItem === 3) ? 4 : 6;
+                    currentMap[nextNext.row][nextNext.col] = 3;
+                } else if (nextNextItem === 2) {
+                    currentMap[actor.row][actor.col] = (item === 4) ? 0 : 2;
+                    currentMap[next.row][next.col] = (nextItem === 3) ? 4 : 6;
+                    currentMap[nextNext.row][nextNext.col] = 5;
+                }
+            }
+        }
+
+        function tryFinish() {
+            let flag = true;
+            out:
+            for(let row of currentMap) {
+                for (let item of row) {
+                    if(item === 3) {
+                        flag = false;
+                        break out;
+                    }
+                }
+            }
+            if(flag) {
+                console.log('finish');
+                nextLevel();
+            }
+        }
+
+        function restart() {
+            initData();
+            initMap();
+        }
+
+        function nextLevel() {
+            level++;
+            if (level == 100) {
+                alert('膜拜大佬，恭喜通关！！')
+            }
+            document.getElementById("level").innerText = level;
+            initData();
+            initMap();
+        }
+
+        function initData() {
+            actor = {
+                row: 0,
+                col: 0,
+                direction: 2
+            };
+            currentMap = JSON.parse(JSON.stringify(levels[level - 1]));
+        }
+    </script>
+</body>
+</html>

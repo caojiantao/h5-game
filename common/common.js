@@ -16,3 +16,13 @@ function fetchFromArray(array, conditions) {
     }
     return null;
 }
+
+function loadImage(url, callback) {
+    return new Promise((resolve, reject) => {
+        let img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = url;
+        callback(img);
+    })
+}
