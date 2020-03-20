@@ -162,21 +162,12 @@
             let item = currentMap[actor.row][actor.col];
             let nextItem = currentMap[next.row][next.col];
             let nextNextItem = currentMap[nextNext.row][nextNext.col];
-            if (nextItem === 0) {
+            if((nextItem === 0) || (nextItem === 2) || (((nextItem ===3) || (nextItem ===5)) && ((nextNextItem === 0) || (nextNextItem === 2)))) {
                 currentMap[actor.row][actor.col] = (item === 4) ? 0 : 2;
-                currentMap[next.row][next.col] = 4;
-            } else if(nextItem === 2) {
-                currentMap[actor.row][actor.col] = (item === 4) ? 0 : 2;
-                currentMap[next.row][next.col] = 6;
-            } else if((nextItem === 3) || (nextItem ===5)) {
-                if (nextNextItem === 0) {
-                    currentMap[actor.row][actor.col] = (item === 4) ? 0 : 2;
-                    currentMap[next.row][next.col] = (nextItem === 3) ? 4 : 6;
-                    currentMap[nextNext.row][nextNext.col] = 3;
-                } else if (nextNextItem === 2) {
-                    currentMap[actor.row][actor.col] = (item === 4) ? 0 : 2;
-                    currentMap[next.row][next.col] = (nextItem === 3) ? 4 : 6;
-                    currentMap[nextNext.row][nextNext.col] = 5;
+                currentMap[next.row][next.col] = ((nextItem === 2) || (nextItem === 5)) ? 6 : 4;
+                if((nextItem === 3) || (nextItem === 5)) {
+                    if (nextNextItem === 0) currentMap[nextNext.row][nextNext.col] = 3;
+                    else if (nextNextItem === 2) currentMap[nextNext.row][nextNext.col] = 5;
                 }
             }
         }
@@ -204,21 +195,18 @@
         }
 
         function nextLevel() {
-            level++;
-            if (level == 100) {
+            if (level >= 100) {
                 alert('膜拜大佬，恭喜通关！！')
+                return;
             }
+            level++;
             document.getElementById("level").innerText = level;
             initData();
             initMap();
         }
 
         function initData() {
-            actor = {
-                row: 0,
-                col: 0,
-                direction: 2
-            };
+            actor.direction = 2;
             currentMap = JSON.parse(JSON.stringify(levels[level - 1]));
         }
     </script>
