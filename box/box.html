@@ -4,38 +4,47 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
     <title>推箱子</title>
+    <link rel="stylesheet" href="../common/common.css">
     <style>
-        body {
-            margin: 0;
+
+        button {
+            padding: 5px 10px;
+            margin: 10px;
         }
 
-         table { border: 1px solid green; } 
-         td { width: 10px; height: 10px; }
+        .info {
+            text-align: center;
+            padding: 3px 0;
+        }
 
-        .block { background-color: black; }
+        .control {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
 
-        .hand-shank {
+        .control .left, .control .right {
             display: flex;
             align-items: center;
             flex-direction: column;
+            padding: 10px;
         }
 
-        .hand-shank button{
-            width: 50px;
-            height: 50px;
-            margin: 10px;
+        .control .left button {
             padding: 10px;
+            margin: 10px 20px;
         }
     </style>
 </head>
 <body>
     <canvas id="canvas"></canvas>
-    当前第<span id="level">1</span>关
-    <button onclick="restart()">重玩本关</button>
-    <button onclick="nextLevel()">下一关</button>
 
-    <div class="hand-shank">
-        <div class="hand-shank left">
+    <div class="info">
+        当前第 <span id="level"></span> 关, 当前步数 <span id="step"></span>
+    </div>
+
+    <div class="control">
+        <div class="left">
             <button onclick="go('ArrowUp')">上</button>
             <div>
                 <button onclick="go('ArrowLeft')">左</button>
@@ -43,8 +52,15 @@
             </div>
             <button onclick="go('ArrowDown')">下</button>
         </div>
-        <div class="hand-shank right"></div>
+        <div class="right">
+            <button onclick="goBack()">后退</button>
+            <button onclick="restart()">重玩本关</button>
+            <button onclick="nextLevel()">下一关</button>
+            <button onclick="jump()">跳转</button>
+        </div>
     </div>
+
+
 
     <script src="../common/common.js"></script>
     <script src="./map.js"></script>
@@ -59,6 +75,8 @@
         let currentMap = [];
         let unit = 0;
         let actor = {};
+        let step = 0;
+        let stepStack = [];
 
         initImage();
 
@@ -66,6 +84,7 @@
             initScale();
             initData();
             initMap();
+            initInfo();
             initListener();
         }
 
@@ -127,8 +146,11 @@
         }
 
         function go(code) {
+            pushStepStack();
+            step++;
             tryGo(code);
             initMap();
+            initInfo();
             tryFinish();
         }
 
@@ -192,6 +214,7 @@
         function restart() {
             initData();
             initMap();
+            initInfo();
         }
 
         function nextLevel() {
@@ -200,14 +223,48 @@
                 return;
             }
             level++;
-            document.getElementById("level").innerText = level;
             initData();
             initMap();
+            initInfo();
         }
 
         function initData() {
             actor.direction = 2;
             currentMap = JSON.parse(JSON.stringify(levels[level - 1]));
+            step = 0;
+            stepStack = [];
+        }
+
+        function initInfo() {
+            document.getElementById("level").innerText = level;
+            document.getElementById("step").innerText = step;
+        }
+
+        function goBack() {
+            let record = stepStack.pop();
+            if (record) {
+                actor.direction = record.direction;
+                currentMap = record.map;
+                step = record.step;
+                initMap();
+                initInfo();
+            }
+        }
+
+        function pushStepStack() {
+            stepStack.push({
+                direction: actor.direction,
+                map: JSON.parse(JSON.stringify(currentMap)),
+                step: step
+            });
+        }
+
+        function jump() {
+            let toLevel = parseInt(prompt("请输入关卡 1 ~ 100"));
+            if (toLevel) {
+                level = toLevel;
+                restart();
+            }
         }
     </script>
 </body>
