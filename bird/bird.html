@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <title>flappy bird</title>
+    <link rel="stylesheet" href="../common/common.css">
+    <style>
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800" height="600"></canvas>
+
+    <script src="../common/common.js"></script>
+    <script>
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext("2d");
+
+        let imageMap = new Map();
+        let preTime = Date.now();
+        let initSpeed = 500;
+        let g = 9.8 * 180;
+        let spaceHeight = 120;
+        let bird = {
+            src: null,
+            padding: 12,
+            speed: 0,
+            x: 0,
+            y: 0
+        };
+        let land = {
+            src: null,
+            speed: 0.0003,
+            offset: 0,
+            height: 0
+        };
+        let pipe = {
+            src: null,
+            speed: 0.0003,
+            list: new Array(2)
+        };
+        let score = 0;
+        let passPipeSet = new Set();
+
+        initImage();
+
+        function initImage() {
+            let taskList = [];
+            let imageList = ["bg_day", "bird0_0", "land", "pipe0", 
+            "font_0", "font_1", "font_2", "font_3", "font_4", "font_5", "font_6", "font_7", "font_8", "font_9",
+            "text_game_over"];
+            imageList.forEach((name, index) => {
+                let url = `./images/${name}.png`;
+                let task = loadImage(url, img => imageMap.set(name, img));
+                taskList.push(task);
+            })
+            Promise.all(taskList).then(() => init());
+        }
+
+        function init() {
+            initData();
+            initListener();
+            run();
+        }
+
+        function initData() {
+            // 设置 canvas
+            canvas.width = document.body.clientWidth;
+            canvas.height = document.body.clientHeight;
+            // 设置草坪数据
+            land.src = imageMap.get("land");
+            land.height = land.src.height / land.src.width * canvas.width;
+            // 设置小鸟初始位置
+            bird.src = imageMap.get("bird0_0");
+            bird.x = (canvas.width - bird.src.width) / 2;
+            bird.y = (canvas.height - bird.src.height) / 2;
+            // 随机设置水管数据
+            pipe.src = imageMap.get("pipe0");
+            let gap = canvas.width / pipe.list.length;
+            let pipeCount = pipe.list.length;
+            for(let i = 0; i < pipeCount + 1; i++) {
+                let item = {};
+                item.x = canvas.width + gap * i;
+                initPipeHeight((upHeight, downHeight) => {
+                    item.upHeight = upHeight;
+                    item.downHeight = downHeight;
+                });
+                item.id = i;
+                pipe.list[i] = item;
+            }
+        }
+
+        function initPipeHeight(callback) {
+            let totalPipeHeight = canvas.height - land.height - spaceHeight;
+            let minHeight = 50;
+            let maxHeight = totalPipeHeight - minHeight;
+            let upHeight = Math.random() * (maxHeight - minHeight) + minHeight;
+            let downHeight = totalPipeHeight - upHeight;
+            callback(upHeight, downHeight);
+        }
+
+        function initListener() {
+            document.onkeydown = e => {
+                if(e.code === 'Space') {
+                    bird.speed = -initSpeed;
+                }
+            };
+        }
+
+        function drawBackgroud() {
+            let bg = imageMap.get("bg_day");
+            let scale = canvas.width / canvas.height;
+            let flag = (bg.width / bg.height) > scale;
+            let x, y, w, h;
+            if (flag) {
+                y = 0;
+                h = bg.height;
+                w = scale * h;
+                x = (bg.width - w) / 2;
+            } else {
+                x = 0;
+                w = bg.width;
+                h = 1 / scale * w;
+                y = (bg.height - h) / 2;
+            }
+            ctx.drawImage(bg, x, y, w, h, 0, 0, canvas.width, canvas.height);
+        }
+
+        function drawLand() {
+            let imgLeft = land.src.width * land.offset;
+            let imgRight = land.src.width * (1 - land.offset);
+            let landLeft = canvas.width * land.offset;
+            let landRight = canvas.width * (1 - land.offset);
+            ctx.drawImage(land.src, imgLeft, 0, land.src.width - imgLeft, land.src.height, 0, canvas.height - land.height, landRight, land.height);
+            ctx.drawImage(land.src, 0, 0, imgLeft, land.src.height, landRight, canvas.height - land.height, landLeft, land.height);
+        }
+
+        function drawPipe() {
+            pipe.list.forEach(item => {
+                ctx.save();
+                let downY = canvas.height - land.height - item.downHeight;
+                ctx.drawImage(pipe.src, 0, 0, pipe.src.width, item.downHeight, item.x, downY, pipe.src.width, item.downHeight);
+                ctx.scale(1, -1);
+                ctx.drawImage(pipe.src, 0, 0, pipe.src.width, item.upHeight, item.x, -item.upHeight, pipe.src.width, item.upHeight);
+                ctx.restore();
+            });
+        }
+
+        function drawBird() {
+            ctx.drawImage(bird.src, bird.x, bird.y);
+        }
+
+        function drawScore() {
+            let numWidth = imageMap.get("font_0").width;
+            let score = passPipeSet.size + "";
+            let scoreImgList = [];
+            for(let i = 0; i < score.length; i++) {
+                scoreImgList.push(score[i]);
+            }
+            let p = (canvas.width - scoreImgList.length * numWidth) / 2;
+            scoreImgList.forEach(item => {
+                let img = imageMap.get(`font_${item}`);
+                ctx.drawImage(img, p, 10);
+                p+=img.width;
+            }) 
+        }
+
+        function drawGameOver() {
+            let img = imageMap.get("text_game_over");
+            let x = (canvas.width - img.width) / 2;
+            let y = (canvas.height - img.height) / 2;
+            ctx.drawImage(img, x, y);
+        }
+
+        function run () {
+            let now = Date.now();
+            let dt = now - preTime;
+            preTime = now;
+            // 计算小鸟坐标
+            let v = (bird.speed / g + (dt / 1000)) * g;
+            let d = (v * v - bird.speed * bird.speed) / (2 * g);
+            bird.speed = v;
+            bird.y += d;
+            // 计算地面移动
+            let flag = land.offset + dt * land.speed;
+            land.offset = flag > 1 ? 0 : flag;
+            // 计算水管移动
+            pipe.list.forEach(item => {
+                item.x -= canvas.width * dt * pipe.speed;
+            });
+            let gap = canvas.width / (pipe.list.length - 1);
+            if(pipe.list[0].x + pipe.src.width < 0) {
+                let item = pipe.list.shift();
+                item.x = pipe.list[pipe.list.length - 1].x + gap;
+                initPipeHeight((upHeight, downHeight) => {
+                    item.upHeight = upHeight;
+                    item.downHeight = downHeight;
+                });
+                item.index = pipe.list.length + passPipeSet.size;
+                pipe.list.push(item);
+            }
+
+            if(checkKnock()){
+                drawGameOver();
+                return;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackgroud();
+            drawPipe();
+            drawLand();
+            drawBird();
+            drawScore();
+
+            requestAnimationFrame(run);
+        }
+
+        let enter = false;
+
+        function checkKnock() {
+            // 小鸟图片边距
+            if((bird.y + bird.src.height) > (canvas.height - land.height + bird.padding)) {
+                return true;
+            }
+            for(let item of pipe.list) {
+                if(bird.x - bird.padding > item.x + pipe.src.width) {
+                    // 加分
+                    if (!passPipeSet.has(item.id)) passPipeSet.add(item.id);
+                    continue;
+                }
+                if((bird.x + bird.src.width - bird.padding < item.x) || (bird.x - bird.padding > item.x + pipe.src.width)) continue;
+                let m = item.upHeight;
+                let n = item.upHeight + spaceHeight;
+                if((bird.y + bird.padding < m) || bird.y + bird.src.height - bird.padding > n) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    </script>
+</body>
+</html>
