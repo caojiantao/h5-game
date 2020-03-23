@@ -105,6 +105,8 @@
                     bird.speed = -initSpeed;
                 }
             };
+
+            canvas.addEventListener('touchstart', () => bird.speed = -initSpeed);
         }
 
         function drawBackgroud() {
@@ -214,8 +216,6 @@
 
             requestAnimationFrame(run);
         }
-
-        let enter = false;
 
         function checkKnock() {
             // 小鸟图片边距
