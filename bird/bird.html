@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width">
+    <meta name="viewport" content="user-scalable=no">
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1">
     <title>flappy bird</title>
     <link rel="stylesheet" href="../common/common.css">
     <style>
@@ -11,8 +13,12 @@
 <body>
     <canvas id="canvas" width="800" height="600"></canvas>
 
+    <script src="https://cdn.bootcss.com/fastclick/1.0.6/fastclick.min.js"></script>
     <script src="../common/common.js"></script>
     <script>
+
+        FastClick.attach(document.body);
+
         let canvas = document.getElementById('canvas');
         let ctx = canvas.getContext("2d");
 
@@ -20,7 +26,7 @@
         let preTime = null;
         let initSpeed = 500;
         let g = 9.8 * 180;
-        let spaceHeight = 120;
+        let spaceHeight = 150;
         let bird = {
             src: null,
             padding: 12,
@@ -114,7 +120,7 @@
                 }
             };
 
-            canvas.addEventListener('touchend', () => {
+            canvas.addEventListener('touchstart', () => {
                 bird.speed = -initSpeed;
                 if (!gameStart) {
                     initData();
@@ -212,13 +218,15 @@
             });
             let gap = canvas.width / (pipe.list.length - 1);
             if(pipe.list[0].x + pipe.src.width < 0) {
+                // 去掉第一个水管，在后面添加一个新的
                 let item = pipe.list.shift();
-                item.x = pipe.list[pipe.list.length - 1].x + gap;
+                let lastPipe = pipe.list[pipe.list.length - 1];
+                item.x = lastPipe.x + gap;
                 initPipeHeight((upHeight, downHeight) => {
                     item.upHeight = upHeight;
                     item.downHeight = downHeight;
                 });
-                item.index = pipe.list.length + passPipeSet.size;
+                item.id = lastPipe.id + 1;
                 pipe.list.push(item);
             }
 
